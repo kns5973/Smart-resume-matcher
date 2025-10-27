@@ -1,69 +1,6 @@
 """
-=================================================
-PROJECT: Smart Resume/Internship Matcher 💼
-=================================================
-
-DESCRIPTION:
-This Streamlit web application is an intelligent matching system. 
-It finds the best student resumes for a given job description 
-based on semantic meaning, not just keyword matching.
-
--------------------------------------------------
-WORKFLOW:
--------------------------------------------------
-1.  INGESTION (Adding Data):
-    - A user uploads a PDF resume or enters a text job description.
-    - The system extracts the raw text from the document.
-    - An AI model (SentenceTransformer) converts this text into a 
-      high-dimensional vector (an "embedding"). This vector 
-      numerically represents the *meaning* of the text.
-    - This vector, along with its metadata (like the filename or 
-      job title), is then stored in the database.
-
-2.  QUERYING (Finding Matches):
-    - The user selects a job description to find matches for.
-    - The system retrieves the vector for that job from the database.
-    - This job vector is used as a *query*.
-    - The system asks the database: "Find the top 3 resume vectors 
-      that are most similar (closest in vector space) to this 
-      job vector."
-    - The database performs a high-speed similarity search 
-      (a "k-Nearest Neighbor" search) and returns the top 3 matches.
-    - The application displays these matches (the original resume text) 
-      to the user.
-
--------------------------------------------------
-HIGHLIGHT: THE DBMS CORE (Why this is a DBMS Project)
--------------------------------------------------
-The AI model only *creates* the vectors, but the **database** is the core engine that makes this project work.
-
-1.  DATABASE TYPE: We use ChromaDB, a specialized **Vector Database**. 
-    This is a modern type of NoSQL database designed specifically 
-    for storing and querying high-dimensional vector data.
-
-2.  "SCHEMA" DESIGN:
-    - We use a database (client) that holds two "collections" 
-      (similar to tables in SQL).
-    - `resume_collection`: Stores all resume vectors and their text.
-    - `job_collection`: Stores all job vectors and their text.
-
-3.  INDEXING (The Magic): 
-    - When we add a vector, ChromaDB doesn't just store it. It 
-      builds a special index (like HNSW - Hierarchical Navigable 
-      Small World).
-    - This index allows for *extremely fast* and efficient 
-      similarity search, even with millions of documents. 
-    - A traditional SQL database cannot do this. You can't write:
-      `SELECT * FROM resumes WHERE vector IS "kinda like" job_vector`.
-
-4.  CORE OPERATIONS: The project is built around two key DBMS operations:
-    - `collection.add()`: This is our "INSERT" statement. We are 
-      writing the document (text), its metadata (title), and its 
-      embedding (vector) into the database.
-    - `collection.query()`: This is our "SELECT" statement. It's 
-      the most important part. We give it a query vector, and the 
-      database itself handles the complex math of comparing it 
-      against all other vectors to find the closest matches.
+This is the main Python file for the Streamlit app.
+The project description is now part of the UI below.
 """
 
 import streamlit as st
@@ -74,11 +11,12 @@ from sentence_transformers import SentenceTransformer
 
 # --- CORE FUNCTIONS ---
 
-@st.cache_resource  # Caches the model so it doesn't reload
+@st.cache_resource  # This caches the model so it doesn't reload
 def get_embedding_model():
     """Loads the Sentence-Transformer model."""
-    st.write("Loading AI model... (This runs only once)")
-    model = SentenceTransformer('all-MiniLM-L6-v2')
+    # Using st.progress to show a user-friendly loading bar
+    with st.spinner("Loading AI model... (This runs only once on startup)"):
+        model = SentenceTransformer('all-MiniLM-L6-v2')
     return model
 
 @st.cache_resource # Caches the database connection
@@ -87,8 +25,6 @@ def initialize_database():
     Initializes the ChromaDB client. 
     This is the main connection to our vector DBMS.
     """
-    st.write("Initializing Vector Database...")
-    # Create an in-memory database client
     client = chromadb.Client() 
     
     # --- DB OPERATION ---
@@ -118,7 +54,50 @@ model = get_embedding_model()
 client, resume_collection, job_collection = initialize_database()
 
 st.title("Smart Resume/Internship Matcher 💼")
-st.write("A DBMS project using a Vector Database (ChromaDB) to perform semantic search on resumes and job descriptions.")
+st.write("A DBMS project using a Vector Database (ChromaDB) to perform semantic search.")
+
+# --- PROJECT DESCRIPTION (MOVED TO UI) ---
+with st.expander("Show Project Description & Workflow", expanded=False):
+    st.markdown("""
+    ### DESCRIPTION
+    This application is an intelligent matching system. It finds the best student resumes for a given job description based on **semantic meaning**, not just keyword matching.
+
+    ---
+    
+    ### WORKFLOW
+    1.  **INGESTION (Adding Data):**
+        * A user uploads a PDF resume or enters a text job description.
+        * The system extracts the raw text.
+        * An AI model (SentenceTransformer) converts this text into a high-dimensional vector (an "embedding"). This vector numerically represents the *meaning* of the text.
+        * This vector and its metadata are then stored in the database.
+
+    2.  **QUERYING (Finding Matches):**
+        * The user selects a job description to find matches for.
+        * The system retrieves the vector for that job from the database.
+        * This job vector is used as a *query*.
+        * The system asks the database: "Find the top 3 resume vectors that are most similar to this job vector."
+        * The database performs a high-speed similarity search and returns the top 3 matches.
+        * The application displays these matches to the user.
+
+    ---
+
+    ### ⭐️ HIGHLIGHT: THE DBMS CORE
+    The AI model only *creates* the vectors, but the **database** is the core engine that makes this project work.
+
+    * **DATABASE TYPE:** We use **ChromaDB**, a specialized **Vector Database**. This is a modern NoSQL database designed for storing and querying high-dimensional vector data.
+
+    * **"SCHEMA" DESIGN:**
+        * `resume_collection`: Stores all resume vectors and their text.
+        * `job_collection`: Stores all job vectors and their text.
+
+    * **INDEXING:** When we add a vector, ChromaDB builds a special index (like HNSW). This index allows for *extremely fast* and efficient similarity search, which a traditional SQL database cannot do.
+
+    * **CORE OPERATIONS:** The project is built around two key DBMS operations:
+        * `collection.add()`: This is our **"INSERT"** statement. We write the document (text), metadata (title), and embedding (vector) into the database.
+        * `collection.query()`: This is our **"SELECT"** statement. We give it a query vector, and the database itself handles the complex math of finding the closest matches.
+    """)
+# --- END OF DESCRIPTION ---
+
 
 # 2. Sidebar for Data Ingestion (Adding to the DB)
 with st.sidebar:
@@ -129,22 +108,21 @@ with st.sidebar:
     uploaded_resumes = st.file_uploader("Upload PDF resumes", type=["pdf"], accept_multiple_files=True)
 
     if st.button("Process Resumes") and uploaded_resumes:
-        for resume_file in uploaded_resumes:
-            resume_text = extract_text_from_pdf(resume_file)
-            if resume_text:
-                # 1. Create embedding (AI part)
-                resume_embedding = model.encode(resume_text).tolist()
-                
-                # 2. --- DB OPERATION ---
-                #    Add the data to the 'resumes' collection.
-                #    This is like an `INSERT` in SQL.
-                resume_collection.add(
-                    embeddings=[resume_embedding],
-                    documents=[resume_text],
-                    metadatas=[{"filename": resume_file.name}],
-                    ids=[resume_file.name] # Use filename as a unique primary key
-                )
-        st.sidebar.success(f"Processed and added {len(uploaded_resumes)} resumes to the database!")
+        with st.spinner("Processing resumes..."):
+            for resume_file in uploaded_resumes:
+                resume_text = extract_text_from_pdf(resume_file)
+                if resume_text:
+                    # 1. Create embedding (AI part)
+                    resume_embedding = model.encode(resume_text).tolist()
+                    
+                    # 2. --- DB OPERATION ---
+                    resume_collection.add(
+                        embeddings=[resume_embedding],
+                        documents=[resume_text],
+                        metadatas=[{"filename": resume_file.name}],
+                        ids=[resume_file.name] 
+                    )
+            st.sidebar.success(f"Processed and added {len(uploaded_resumes)} resumes to the database!")
 
     # --- Add Job Descriptions ---
     st.subheader("Add Job Description (INSERT)")
@@ -152,18 +130,17 @@ with st.sidebar:
     job_desc = st.text_area("Job Description Text")
 
     if st.button("Process Job Description") and job_title and job_desc:
-        # 1. Create embedding (AI part)
-        job_embedding = model.encode(job_desc).tolist()
-        
-        # 2. --- DB OPERATION ---
-        #    Add the data to the 'jobs' collection.
-        #    This is like an `INSERT` in SQL.
-        job_collection.add(
-            embeddings=[job_embedding],
-            documents=[job_desc],
-            metadatas=[{"title": job_title}],
-            ids=[job_title] # Use job title as a unique primary key
-        )
+        with st.spinner("Processing job description..."):
+            # 1. Create embedding (AI part)
+            job_embedding = model.encode(job_desc).tolist()
+            
+            # 2. --- DB OPERATION ---
+            job_collection.add(
+                embeddings=[job_embedding],
+                documents=[job_desc],
+                metadatas=[{"title": job_title}],
+                ids=[job_title] 
+            )
         st.sidebar.success(f"Added job '{job_title}' to the database!")
 
 
@@ -171,8 +148,6 @@ with st.sidebar:
 st.header("Find Best Candidate Matches (QUERY)")
 
 # --- DB OPERATION ---
-# Get all jobs from the 'jobs' collection to populate the dropdown.
-# This is like `SELECT title FROM jobs`.
 all_jobs = job_collection.get()
 job_titles = []
 if all_jobs['metadatas']:
@@ -185,40 +160,34 @@ else:
     selected_job_title = st.selectbox("Select Job Description to Query With:", options=job_titles)
     
     if st.button("Find Top 3 Matches"):
-        
-        # 1. --- DB OPERATION ---
-        #    Get the selected job's embedding from the DB to use as our query.
-        job_data = job_collection.get(ids=[selected_job_title], include=["embeddings"])
-        
-        if job_data['embeddings']:
-            query_embedding = job_data['embeddings'][0]
+        with st.spinner(f"Querying database for matches to '{selected_job_title}'..."):
             
-            # 2. --- THE CORE DB QUERY ---
-            #    Query the 'resumes' collection. We ask the database 
-            #    to find the 3 vectors most similar to our query_embedding.
-            #    This is the main "semantic search" operation.
-            results = resume_collection.query(
-                query_embeddings=[query_embedding],
-                n_results=3  # Ask for the top 3 matches
-            )
+            # 1. --- DB OPERATION ---
+            job_data = job_collection.get(ids=[selected_job_title], include=["embeddings"])
             
-            st.subheader(f"Top 3 Matches for '{selected_job_title}':")
-            
-            # 3. Display results
-            if not results['ids'][0]:
-                st.info("No resumes found in the database. Please upload some.")
+            if job_data['embeddings']:
+                query_embedding = job_data['embeddings'][0]
+                
+                # 2. --- THE CORE DB QUERY ---
+                results = resume_collection.query(
+                    query_embeddings=[query_embedding],
+                    n_results=3  
+                )
+                
+                st.subheader(f"Top 3 Matches for '{selected_job_title}':")
+                
+                # 3. Display results
+                if not results['ids'][0]:
+                    st.info("No resumes found in the database. Please upload some.")
+                else:
+                    for i, (resume_id, distance) in enumerate(zip(results['ids'][0], results['distances'][0])):
+                        st.markdown(f"**Match #{i+1}**")
+                        st.write(f"**Resume:** `{resume_id}`")
+                        st.write(f"**Similarity Score:** {1 - distance:.2f} (Closer to 1 is better)")
+                        
+                        # Get the resume text to show it
+                        resume_text = resume_collection.get(ids=[resume_id])['documents'][0]
+                        with st.expander("Show Resume Text Snippet"):
+                            st.write(resume_text[:500] + "...")
             else:
-                for i, (resume_id, distance) in enumerate(zip(results['ids'][0], results['distances'][0])):
-                    st.markdown(f"**Match #{i+1}**")
-                    st.write(f"**Resume:** `{resume_id}`")
-                    
-                    # Distance is what the DB returns. Similarity is more intuitive.
-                    # Cosine similarity = 1 - Cosine Distance
-                    st.write(f"**Similarity Score:** {1 - distance:.2f} (Closer to 1 is better)")
-                    
-                    # Get the resume text to show it
-                    resume_text = resume_collection.get(ids=[resume_id])['documents'][0]
-                    with st.expander("Show Resume Text"):
-                        st.write(resume_text[:500] + "...")
-        else:
-            st.error("Could not find job data. Please try again.")
+                st.error("Could not find job data. Please try again.")
