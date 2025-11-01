@@ -193,3 +193,4 @@ else:
                         with st.expander("Show Resume Text Snippet"):
                             st.write(resume_text[:500] + "...")
             else:
+                st.error("Could not find job data. Please try again.")
