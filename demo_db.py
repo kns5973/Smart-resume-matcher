@@ -165,7 +165,10 @@ else:
             # 1. --- DB OPERATION ---
             job_data = job_collection.get(ids=[selected_job_title], include=["embeddings"])
             
-            if job_data['embeddings']:
+            # === THIS IS THE FIX ===
+            # Instead of "if job_data['embeddings']:"
+            # We explicitly check if the list is not None and has a length > 0
+            if job_data['embeddings'] is not None and len(job_data['embeddings']) > 0:
                 query_embedding = job_data['embeddings'][0]
                 
                 # 2. --- THE CORE DB QUERY ---
@@ -190,4 +193,3 @@ else:
                         with st.expander("Show Resume Text Snippet"):
                             st.write(resume_text[:500] + "...")
             else:
-                st.error("Could not find job data. Please try again.")
